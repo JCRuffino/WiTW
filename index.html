@@ -1,0 +1,1543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Werewolf in the Woods</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #0d0d0d;
+    --surface:   #1a1a2e;
+    --card:      #16213e;
+    --accent:    #e94560;
+    --accent2:   #f5a623;
+    --text:      #e8e8e8;
+    --muted:     #888;
+    --border:    #2a2a4a;
+    --green:     #27ae60;
+    --radius:    14px;
+    --font:      'Segoe UI', system-ui, sans-serif;
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    overflow-x: hidden;
+  }
+
+  .screen {
+    display: none;
+    flex-direction: column;
+    min-height: 100vh;
+    padding: 24px 20px 32px;
+    animation: fadeIn .3s ease;
+  }
+  .screen.active { display: flex; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  h2 { font-size: clamp(1.3rem, 5vw, 1.8rem); font-weight: 700; }
+
+  .subtitle { color: var(--muted); font-size: .95rem; margin-top: 6px; }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    gap: 8px; padding: 14px 28px; border: none; border-radius: var(--radius);
+    font-size: 1rem; font-weight: 700; cursor: pointer;
+    transition: transform .15s, opacity .15s, box-shadow .15s;
+    letter-spacing: .3px; text-align: center;
+  }
+  .btn:active { transform: scale(.96); }
+  .btn-primary { background: var(--accent); color: #fff; box-shadow: 0 4px 20px rgba(233,69,96,.35); }
+  .btn-primary:hover { opacity: .9; }
+  .btn-secondary { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover { border-color: var(--accent); }
+  .btn-success { background: var(--green); color: #fff; box-shadow: 0 4px 20px rgba(39,174,96,.35); }
+  .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); padding: 10px 20px; font-size: .9rem; }
+  .btn-ghost:hover { color: var(--text); border-color: var(--text); }
+  .btn-night { background: #1a0a2e; color: #c39bd3; border: 1px solid #4a2a6a; box-shadow: 0 4px 20px rgba(100,0,150,.3); }
+  .btn-night:hover { background: #2a0a4e; border-color: #7a4a9a; }
+  .btn-day { background: #2e1a00; color: #f5a623; border: 1px solid #6a4a00; box-shadow: 0 4px 20px rgba(150,100,0,.3); }
+  .btn-day:hover { background: #3e2a00; }
+  .btn-full { width: 100%; }
+  .btn:disabled { opacity: .35; cursor: not-allowed; transform: none; }
+
+  .counter-badge {
+    position: fixed; top: 16px; left: 16px;
+    background: var(--accent2); color: #000;
+    font-weight: 800; font-size: 1rem; padding: 6px 14px;
+    border-radius: 50px; z-index: 100;
+    box-shadow: 0 2px 12px rgba(245,166,35,.4);
+  }
+
+  input[type="text"] {
+    width: 100%; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; color: var(--text); font-size: 1rem;
+    padding: 12px 16px; outline: none; transition: border-color .2s;
+  }
+  input[type="text"]:focus { border-color: var(--accent); }
+  input[type="text"]::placeholder { color: var(--muted); }
+
+  .player-list { display: flex; flex-direction: column; gap: 10px; margin: 20px 0; max-height: 46vh; overflow-y: auto; padding-right: 4px; }
+  .player-item { display: flex; align-items: center; gap: 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; }
+  .player-num { font-size: .8rem; color: var(--muted); min-width: 22px; font-weight: 700; }
+  .player-name-text { flex: 1; font-weight: 600; }
+  .remove-btn { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 1.1rem; padding: 2px 6px; border-radius: 6px; transition: color .15s, background .15s; }
+  .remove-btn:hover { color: var(--accent); background: rgba(233,69,96,.12); }
+
+  .add-row { display: flex; gap: 10px; margin-bottom: 16px; }
+  .add-row input { flex: 1; }
+  .add-row .btn { padding: 12px 18px; white-space: nowrap; }
+
+  .role-grid { display: flex; flex-direction: column; gap: 10px; margin: 16px 0; }
+  .role-card {
+    background: var(--card); border: 2px solid var(--border); border-radius: var(--radius);
+    padding: 14px 18px; cursor: pointer; display: flex; align-items: center; gap: 14px;
+    transition: border-color .2s, transform .15s, box-shadow .2s; user-select: none;
+  }
+  .role-card:hover { border-color: var(--accent); transform: translateX(3px); }
+  .role-card.selected { border-color: var(--accent2); background: rgba(245,166,35,.08); box-shadow: 0 0 0 2px rgba(245,166,35,.25); }
+  .role-card.multi-selected { border-color: var(--green); background: rgba(39,174,96,.08); box-shadow: 0 0 0 2px rgba(39,174,96,.25); flex-direction: column; align-items: stretch; }
+  .role-card .role-icon { font-size: 1.8rem; flex-shrink: 0; }
+  .role-card .role-info { flex: 1; }
+  .role-card .role-name { font-weight: 700; font-size: 1rem; }
+  .role-card .role-range { font-size: .8rem; color: var(--muted); margin-top: 2px; }
+  .role-card .role-count-badge { font-size: .9rem; color: var(--accent2); font-weight: 800; min-width: 32px; text-align: right; }
+  .role-card.multi-selected .role-count-badge { color: var(--green); }
+  .role-card.multi-selected .card-top { display: flex; align-items: center; gap: 14px; }
+  .role-card:not(.multi-selected) .card-top { display: flex; align-items: center; gap: 14px; width: 100%; }
+  .role-card:not(.multi-selected) .inline-count { display: none; }
+
+  .inline-count { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
+  .inline-count .ic-btn { width: 32px; height: 32px; border-radius: 50%; border: 2px solid var(--border); background: var(--surface); color: var(--text); font-size: 1.2rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: border-color .15s; flex-shrink: 0; }
+  .inline-count .ic-btn:hover { border-color: var(--green); }
+  .inline-count .ic-btn:disabled { opacity: .3; cursor: not-allowed; }
+  .inline-count .ic-val { font-size: 1.1rem; font-weight: 800; min-width: 24px; text-align: center; }
+  .inline-count .ic-label { font-size: .8rem; color: var(--muted); flex: 1; }
+
+  .count-controls { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 10px; }
+  .count-btn { width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--border); background: var(--surface); color: var(--text); font-size: 1.4rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: border-color .15s, background .15s; }
+  .count-btn:hover { border-color: var(--accent); background: rgba(233,69,96,.1); }
+  .count-btn:disabled { opacity: .3; cursor: not-allowed; }
+  .count-val { font-size: 1.4rem; font-weight: 800; min-width: 32px; text-align: center; }
+
+  .selected-panel { background: rgba(245,166,35,.07); border: 1px solid rgba(245,166,35,.25); border-radius: var(--radius); padding: 14px 18px; margin: 12px 0 4px; display: flex; align-items: center; gap: 14px; }
+  .selected-panel .sp-icon { font-size: 1.8rem; }
+  .selected-panel .sp-info { flex: 1; }
+  .selected-panel .sp-name { font-weight: 700; font-size: 1rem; }
+  .selected-panel .sp-count { font-size: .85rem; color: var(--accent2); margin-top: 2px; }
+
+  .summary-list { display: flex; flex-direction: column; gap: 10px; margin: 20px 0; }
+  .summary-item { display: flex; align-items: center; gap: 14px; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; }
+  .summary-icon { font-size: 1.5rem; }
+  .summary-info { flex: 1; }
+  .summary-role { font-weight: 700; font-size: .95rem; }
+  .summary-cat { font-size: .78rem; color: var(--muted); margin-top: 2px; }
+  .summary-count { font-weight: 800; font-size: 1rem; color: var(--accent2); background: rgba(245,166,35,.1); border-radius: 8px; padding: 4px 12px; }
+
+  .show-roles-list { display: flex; flex-direction: column; gap: 10px; margin: 16px 0; max-height: 60vh; overflow-y: auto; padding-right: 4px; }
+  .show-role-item { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; cursor: pointer; display: flex; align-items: center; gap: 14px; transition: border-color .2s, transform .15s; user-select: none; }
+  .show-role-item:hover { border-color: var(--accent); transform: translateX(3px); }
+  .show-role-item .sri-icon { font-size: 1.8rem; }
+  .show-role-item .sri-info { flex: 1; }
+  .show-role-item .sri-player { font-weight: 700; font-size: 1.05rem; }
+  .show-role-item .sri-role { font-size: .85rem; color: var(--muted); margin-top: 2px; }
+  .show-role-item .sri-arrow { color: var(--muted); font-size: .9rem; }
+
+  #screen-reveal { background: var(--bg); justify-content: center; align-items: center; text-align: center; gap: 20px; }
+  .reveal-icon { font-size: 6rem; animation: pulse 2s infinite; }
+  .reveal-player { font-size: clamp(2rem,9vw,3.5rem); font-weight: 800; color: var(--accent2); }
+  .reveal-role { font-size: clamp(1.6rem,7vw,2.8rem); font-weight: 700; color: var(--text); margin-top: 8px; }
+  .reveal-cat { font-size: 1rem; color: var(--muted); margin-top: 4px; }
+
+  @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.75); z-index: 200; align-items: center; justify-content: center; padding: 24px; }
+  .modal-overlay.open { display: flex; }
+  .modal-box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px 24px; max-width: 360px; width: 100%; text-align: center; }
+  .modal-box h3 { margin-bottom: 10px; font-size: 1.2rem; }
+  .modal-box p { color: var(--muted); font-size: .95rem; margin-bottom: 24px; }
+  .modal-actions { display: flex; gap: 12px; }
+  .modal-actions .btn { flex: 1; }
+
+  .nav-row { display: flex; gap: 12px; margin-top: auto; padding-top: 24px; }
+  .nav-row .btn { flex: 1; }
+
+  #screen-home { justify-content: center; align-items: center; text-align: center; gap: 0; }
+  .home-logo { font-size: 5rem; margin-bottom: 16px; animation: pulse 3s infinite; }
+  .home-title { font-size: clamp(2rem,8vw,3.2rem); font-weight: 800; letter-spacing: -1px; margin-bottom: 6px; }
+  .home-sub { color: var(--muted); font-size: 1rem; margin-bottom: 48px; }
+  .home-buttons { display: flex; flex-direction: column; gap: 14px; width: 100%; max-width: 320px; }
+
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  .mt-16 { margin-top: 16px; }
+  .mt-auto { margin-top: auto; }
+  .role-scroll { flex: 1; overflow-y: auto; padding-right: 4px; margin-top: 8px; }
+
+  .cat-monster { color: #e94560; }
+  .cat-minion  { color: #9b59b6; }
+  .cat-outcast { color: #e67e22; }
+  .cat-villager{ color: #27ae60; }
+
+  .optional-hint { display: inline-block; font-size: .75rem; color: var(--muted); border: 1px solid var(--border); border-radius: 20px; padding: 2px 10px; margin-top: 8px; }
+
+  /* ══════════════════════════════════════
+     GAME SCREEN
+  ══════════════════════════════════════ */
+  #screen-game {
+    padding: 0;
+    position: relative;
+    overflow: hidden;
+    background: radial-gradient(ellipse at center, #0d1a0d 0%, #0d0d0d 100%);
+  }
+
+  /* Horseshoe arena */
+  .arena {
+    flex: 1;
+    position: relative;
+    width: 100%;
+    min-height: 0;
+  }
+
+  /* Player tokens on the horseshoe */
+  .player-token {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    cursor: default;
+    transform: translate(-50%, -50%);
+    transition: transform .2s;
+  }
+  .player-token .token-dot {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    background: var(--card);
+    border: 2px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.3rem;
+    box-shadow: 0 2px 12px rgba(0,0,0,.4);
+    transition: border-color .3s;
+  }
+  .player-token.alive .token-dot  { border-color: var(--green); }
+  .player-token.dead  .token-dot  { border-color: var(--accent); opacity: .5; }
+  .player-token .token-name {
+    font-size: .65rem; font-weight: 700;
+    color: var(--text); text-align: center;
+    max-width: 56px; line-height: 1.2;
+    text-shadow: 0 1px 4px rgba(0,0,0,.8);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+
+  /* Day/night phase label */
+  .phase-label {
+    position: absolute;
+    top: 16px; left: 50%; transform: translateX(-50%);
+    font-size: .8rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+    padding: 4px 16px; border-radius: 20px;
+    z-index: 10;
+  }
+  .phase-label.night { background: rgba(100,0,180,.3); color: #c39bd3; border: 1px solid #4a2a6a; }
+  .phase-label.day   { background: rgba(180,120,0,.3); color: var(--accent2); border: 1px solid #6a4a00; }
+
+  /* Round counter */
+  .round-label {
+    position: absolute;
+    top: 16px; right: 16px;
+    font-size: .75rem; font-weight: 700; color: var(--muted);
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 20px; padding: 4px 12px;
+  }
+
+  /* Bottom bar */
+  .game-bottom {
+    flex-shrink: 0;
+    padding: 16px 20px 28px;
+    background: linear-gradient(to top, rgba(0,0,0,.9) 0%, transparent 100%);
+  }
+
+  /* Night phase button */
+  .night-phase-btn {
+    width: 100%;
+    padding: 16px;
+    border-radius: var(--radius);
+    font-size: 1.05rem;
+    font-weight: 800;
+    letter-spacing: .5px;
+    background: linear-gradient(135deg, #1a0a2e, #2a0a4e);
+    color: #c39bd3;
+    border: 1px solid #4a2a6a;
+    cursor: pointer;
+    box-shadow: 0 4px 24px rgba(100,0,180,.3);
+    transition: opacity .2s, transform .15s;
+  }
+  .night-phase-btn:hover { opacity: .9; }
+  .night-phase-btn:active { transform: scale(.98); }
+
+  /* Day phase button */
+  .day-phase-btn {
+    width: 100%;
+    padding: 16px;
+    border-radius: var(--radius);
+    font-size: 1.05rem;
+    font-weight: 800;
+    letter-spacing: .5px;
+    background: linear-gradient(135deg, #2e1a00, #3e2a00);
+    color: var(--accent2);
+    border: 1px solid #6a4a00;
+    cursor: pointer;
+    box-shadow: 0 4px 24px rgba(150,100,0,.3);
+    transition: opacity .2s, transform .15s;
+  }
+  .day-phase-btn:hover { opacity: .9; }
+  .day-phase-btn:active { transform: scale(.98); }
+
+  /* ── Night Carousel ── */
+  .night-carousel {
+    display: none;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .night-carousel.open { display: flex; }
+
+  /* Progress dots */
+  .carousel-dots {
+    display: flex; justify-content: center; gap: 6px; margin-bottom: 4px;
+  }
+  .carousel-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--border); transition: background .2s, transform .2s;
+  }
+  .carousel-dot.active { background: #c39bd3; transform: scale(1.3); }
+  .carousel-dot.done   { background: #4a2a6a; }
+
+  /* Carousel card */
+  .carousel-card {
+    background: linear-gradient(135deg, #100820, #1a0a2e);
+    border: 1px solid #4a2a6a;
+    border-radius: var(--radius);
+    padding: 20px 18px;
+    text-align: center;
+    animation: fadeIn .25s ease;
+  }
+  .carousel-card .cc-icon  { font-size: 2.4rem; margin-bottom: 8px; }
+  .carousel-card .cc-title { font-size: 1.1rem; font-weight: 800; color: #c39bd3; margin-bottom: 6px; }
+  .carousel-card .cc-desc  { font-size: .88rem; color: var(--muted); line-height: 1.5; }
+
+  /* Carousel nav */
+  .carousel-nav {
+    display: flex; gap: 10px;
+  }
+  .carousel-nav .btn { flex: 1; padding: 12px; font-size: .9rem; }
+
+  /* Wake up button — special */
+  .wake-btn {
+    width: 100%; padding: 16px;
+    background: linear-gradient(135deg, #1a2e0a, #2a4e0a);
+    color: #a8e063; border: 1px solid #4a6a0a;
+    border-radius: var(--radius); font-size: 1rem; font-weight: 800;
+    cursor: pointer; box-shadow: 0 4px 24px rgba(80,150,0,.25);
+    transition: opacity .2s, transform .15s;
+  }
+  .wake-btn:hover { opacity: .9; }
+  .wake-btn:active { transform: scale(.98); }
+
+  /* ── Day Phase Timer ── */
+  .day-bottom {
+    display: none;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .day-bottom.open { display: flex; }
+
+  .timer-display {
+    text-align: center;
+    font-size: 3.5rem;
+    font-weight: 800;
+    color: var(--accent2);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 2px;
+    text-shadow: 0 0 20px rgba(245,166,35,.4);
+    line-height: 1;
+  }
+  .timer-display.urgent { color: var(--accent); text-shadow: 0 0 20px rgba(233,69,96,.5); animation: timerPulse .8s infinite; }
+
+  @keyframes timerPulse { 0%,100% { opacity: 1; } 50% { opacity: .6; } }
+
+  .timer-label {
+    text-align: center; font-size: .75rem; font-weight: 700;
+    letter-spacing: 1px; text-transform: uppercase; color: var(--muted);
+    margin-top: -4px;
+  }
+
+  .timer-controls { display: flex; gap: 10px; }
+  .timer-controls .btn { flex: 1; padding: 12px; font-size: .9rem; }
+
+  .start-day-btn {
+    width: 100%; padding: 16px;
+    background: linear-gradient(135deg, #2e1a00, #3e2a00);
+    color: var(--accent2); border: 1px solid #6a4a00;
+    border-radius: var(--radius); font-size: 1.05rem; font-weight: 800;
+    cursor: pointer; box-shadow: 0 4px 24px rgba(150,100,0,.3);
+    transition: opacity .2s, transform .15s;
+  }
+  .start-day-btn:hover { opacity: .9; }
+  .start-day-btn:active { transform: scale(.98); }
+
+  .night-phase-trigger {
+    width: 100%; padding: 14px;
+    background: linear-gradient(135deg, #1a0a2e, #2a0a4e);
+    color: #c39bd3; border: 1px solid #4a2a6a;
+    border-radius: var(--radius); font-size: .95rem; font-weight: 800;
+    cursor: pointer; transition: opacity .2s;
+  }
+  .night-phase-trigger:hover { opacity: .9; }
+</style>
+</head>
+<body>
+
+<!-- HOME -->
+<div id="screen-home" class="screen active">
+  <div class="home-logo">🌲</div>
+  <h1 class="home-title">Werewolf<br>in the Woods</h1>
+  <p class="home-sub">A companion for the night</p>
+  <div class="home-buttons">
+    <button class="btn btn-primary btn-full" onclick="startNewGame()">🎮 New Game</button>
+    <button id="btn-continue" class="btn btn-secondary btn-full" style="display:none" onclick="continueGame()">▶ Continue Game</button>
+  </div>
+</div>
+
+<!-- PLAYERS -->
+<div id="screen-players" class="screen">
+  <h2>👥 Enter Players</h2>
+  <p class="subtitle">Add players in the order they're standing. Max 18.</p>
+  <div class="add-row mt-16">
+    <input type="text" id="player-input" placeholder="Player name…" maxlength="24"
+           onkeydown="if(event.key==='Enter')addPlayer()" />
+    <button class="btn btn-primary" onclick="addPlayer()">Add</button>
+  </div>
+  <div class="player-list" id="player-list"></div>
+  <div id="select-roles-wrap" style="display:none; margin-top:auto;">
+    <button class="btn btn-success btn-full" onclick="goToMonster()">Select Roles →</button>
+  </div>
+  <div class="nav-row" style="padding-top:12px;">
+    <button class="btn btn-ghost" onclick="showScreen('screen-home')">← Home</button>
+  </div>
+</div>
+
+<!-- MONSTER -->
+<div id="screen-monster" class="screen">
+  <div class="counter-badge" id="counter-monster">0/0</div>
+  <h2 class="mt-16">🐺 Choose Monster</h2>
+  <p class="subtitle">Select one monster type and how many are in the game.</p>
+  <div class="role-scroll">
+    <div class="role-grid" id="monster-grid"></div>
+    <div id="monster-count-area" style="display:none;">
+      <div class="selected-panel" id="monster-selected-panel"></div>
+      <div class="count-controls">
+        <button class="count-btn" id="monster-dec" onclick="changeCount('monster',-1)">−</button>
+        <span class="count-val" id="monster-count-val">1</span>
+        <button class="count-btn" id="monster-inc" onclick="changeCount('monster',1)">+</button>
+      </div>
+    </div>
+  </div>
+  <div class="nav-row">
+    <button class="btn btn-ghost" onclick="goBackToPlayers()">← Back</button>
+    <button class="btn btn-primary" id="btn-monster-next" disabled onclick="goToMinion()">Next →</button>
+  </div>
+</div>
+
+<!-- MINION -->
+<div id="screen-minion" class="screen">
+  <div class="counter-badge" id="counter-minion">0/0</div>
+  <h2 class="mt-16">🕸️ Choose Minion</h2>
+  <p class="subtitle">Select a minion type, or skip if none.</p>
+  <span class="optional-hint">Optional — skip with Next →</span>
+  <div class="role-scroll">
+    <div class="role-grid" id="minion-grid"></div>
+    <div id="minion-count-area" style="display:none;">
+      <div class="selected-panel" id="minion-selected-panel"></div>
+      <div class="count-controls">
+        <button class="count-btn" id="minion-dec" onclick="changeCount('minion',-1)">−</button>
+        <span class="count-val" id="minion-count-val">1</span>
+        <button class="count-btn" id="minion-inc" onclick="changeCount('minion',1)">+</button>
+      </div>
+    </div>
+  </div>
+  <div class="nav-row">
+    <button class="btn btn-ghost" onclick="goBackToPlayers()">← Back</button>
+    <button class="btn btn-primary" onclick="goToOutcast()">Next →</button>
+  </div>
+</div>
+
+<!-- OUTCAST -->
+<div id="screen-outcast" class="screen">
+  <div class="counter-badge" id="counter-outcast">0/0</div>
+  <h2 class="mt-16">🔥 Choose Outcast</h2>
+  <p class="subtitle">Select an outcast type, or skip if none.</p>
+  <span class="optional-hint">Optional — skip with Next →</span>
+  <div class="role-scroll">
+    <div class="role-grid" id="outcast-grid"></div>
+    <div id="outcast-count-area" style="display:none;">
+      <div class="selected-panel" id="outcast-selected-panel"></div>
+      <div class="count-controls">
+        <button class="count-btn" id="outcast-dec" onclick="changeCount('outcast',-1)">−</button>
+        <span class="count-val" id="outcast-count-val">1</span>
+        <button class="count-btn" id="outcast-inc" onclick="changeCount('outcast',1)">+</button>
+      </div>
+    </div>
+  </div>
+  <div class="nav-row">
+    <button class="btn btn-ghost" onclick="goBackToPlayers()">← Back</button>
+    <button class="btn btn-primary" onclick="goToVillager()">Next →</button>
+  </div>
+</div>
+
+<!-- VILLAGER -->
+<div id="screen-villager" class="screen">
+  <div class="counter-badge" id="counter-villager">0/0</div>
+  <h2 class="mt-16">🏡 Choose Villagers</h2>
+  <p class="subtitle">Select one or more villager roles and set each count.</p>
+  <div class="role-scroll">
+    <div class="role-grid" id="villager-grid"></div>
+  </div>
+  <div class="nav-row">
+    <button class="btn btn-ghost" onclick="goBackToPlayers()">← Back</button>
+    <button class="btn btn-primary" id="btn-villager-next" disabled onclick="goToSummary()">Next →</button>
+  </div>
+</div>
+
+<!-- SUMMARY -->
+<div id="screen-summary" class="screen">
+  <h2>📋 Role Summary</h2>
+  <p class="subtitle" id="summary-subtitle"></p>
+  <div class="summary-list" id="summary-list"></div>
+  <div class="nav-row">
+    <button class="btn btn-ghost" onclick="goBackToPlayers()">← Back</button>
+    <button class="btn btn-success" onclick="assignRoles()">Assign Roles →</button>
+  </div>
+</div>
+
+<!-- SHOW ROLES -->
+<div id="screen-showroles" class="screen">
+  <h2>🎭 Player Roles</h2>
+  <p class="subtitle">Tap a player to reveal their role privately.</p>
+  <div class="show-roles-list" id="show-roles-list"></div>
+  <div class="nav-row">
+    <button class="btn btn-ghost" onclick="showScreen('screen-summary')">← Back</button>
+    <button class="btn btn-primary" onclick="openStartModal()">🌙 Start Game</button>
+  </div>
+</div>
+
+<!-- REVEAL -->
+<div id="screen-reveal" class="screen">
+  <div class="reveal-icon"   id="reveal-icon">🌲</div>
+  <div class="reveal-player" id="reveal-player"></div>
+  <div class="reveal-role"   id="reveal-role"></div>
+  <div class="reveal-cat"    id="reveal-cat"></div>
+  <button class="btn btn-ghost mt-auto" style="width:100%;max-width:320px;"
+          onclick="showScreen('screen-showroles')">← Back</button>
+</div>
+
+<!-- ══════════════════════════════════════
+     GAME SCREEN
+══════════════════════════════════════ -->
+<div id="screen-game" class="screen">
+
+  <div class="phase-label night" id="phase-label">🌙 Night 1</div>
+  <div class="round-label" id="round-label">Round 1</div>
+
+  <!-- Horseshoe arena -->
+  <div class="arena" id="arena"></div>
+
+  <!-- Bottom bar -->
+  <div class="game-bottom" id="game-bottom">
+
+    <!-- State A: Night phase trigger button -->
+    <button class="night-phase-btn" id="btn-night-phase" onclick="openNightCarousel()">
+      🌙 Night Phase
+    </button>
+
+    <!-- State B: Night carousel -->
+    <div class="night-carousel" id="night-carousel">
+      <div class="carousel-dots" id="carousel-dots"></div>
+      <div class="carousel-card" id="carousel-card">
+        <div class="cc-icon"  id="cc-icon">😴</div>
+        <div class="cc-title" id="cc-title">Put Players to Sleep</div>
+        <div class="cc-desc"  id="cc-desc">Ask all players to close their eyes and put their heads down.</div>
+      </div>
+      <div class="carousel-nav" id="carousel-nav">
+        <button class="btn btn-ghost" id="carousel-prev" onclick="carouselPrev()">← Prev</button>
+        <button class="btn btn-primary" id="carousel-next" onclick="carouselNext()">Next →</button>
+      </div>
+      <!-- Wake up button — shown only on last card -->
+      <button class="wake-btn" id="wake-btn" style="display:none" onclick="endNightPhase()">
+        ☀️ Wake Players Up
+      </button>
+    </div>
+
+    <!-- State C: Day phase -->
+    <div class="day-bottom" id="day-bottom">
+      <div id="timer-wrap" style="display:none;">
+        <div class="timer-display" id="timer-display">6:00</div>
+        <div class="timer-label">Day Phase Timer</div>
+      </div>
+      <div class="timer-controls" id="timer-controls" style="display:none;">
+        <button class="btn btn-ghost" onclick="pauseTimer()">⏸ Pause</button>
+        <button class="btn btn-ghost" onclick="resetTimer()">↺ Reset</button>
+      </div>
+      <button class="start-day-btn" id="start-day-btn" onclick="startDayTimer()">☀️ Start Day</button>
+      <button class="night-phase-trigger" onclick="triggerNextNight()">🌙 Begin Night Phase</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- MODAL — start game -->
+<div class="modal-overlay" id="modal-start">
+  <div class="modal-box">
+    <h3>🌙 Start the Night?</h3>
+    <p>All players know their roles?</p>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeStartModal()">No</button>
+      <button class="btn btn-primary"   onclick="confirmStartGame()">Yes</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ══════════════════════════════════════
+   ROLE DATA
+══════════════════════════════════════ */
+const ROLES = {
+  monster: [
+    { id:'alpha-wolf', name:'Alpha Wolf', icon:'🐺', cat:'Monster', min:1, max:1,  note:'1 + Lone Wolf' },
+    { id:'vampire',    name:'Vampire',    icon:'🧛', cat:'Monster', min:1, max:3,  note:'1–3' },
+    { id:'blob',       name:'The Blob',   icon:'🟢', cat:'Monster', min:2, max:3,  note:'2–3, no minions' },
+    { id:'zombie',     name:'Zombie',     icon:'🧟', cat:'Monster', min:1, max:1,  note:'1' },
+  ],
+  minion: [
+    { id:'snatcher',      name:'Snatcher',     icon:'🪤', cat:'Minion', min:1, max:2, note:'1–2' },
+    { id:'tax-collector', name:'Tax Collector', icon:'💰', cat:'Minion', min:1, max:3, note:'1–3' },
+  ],
+  outcast: [
+    { id:'liar',       name:'Liar',       icon:'🎭', cat:'Outcast', min:1, max:2, note:'1–2' },
+    { id:'matchmaker', name:'Matchmaker', icon:'💘', cat:'Outcast', min:1, max:2, note:'1–2' },
+    { id:'tanner',     name:'Tanner',     icon:'🪵', cat:'Outcast', min:1, max:2, note:'1–2' },
+  ],
+  villager: [
+    { id:'butcher',    name:'Butcher',    icon:'🔪', cat:'Villager', min:1, max:2, note:'1–2' },
+    { id:'cobbler',    name:'Cobbler',    icon:'👞', cat:'Villager', min:1, max:4, note:'1–4' },
+    { id:'farmer',     name:'Farmer',     icon:'🌾', cat:'Villager', min:1, max:3, note:'1–3' },
+    { id:'fishmonger', name:'Fishmonger', icon:'🐟', cat:'Villager', min:1, max:4, note:'1–4' },
+    { id:'hero',       name:'Hero',       icon:'🦸', cat:'Villager', min:1, max:2, note:'1–2' },
+    { id:'hunter',     name:'Hunter',     icon:'🏹', cat:'Villager', min:1, max:2, note:'1–2' },
+    { id:'knight',     name:'Knight',     icon:'⚔️', cat:'Villager', min:1, max:2, note:'1–2' },
+    { id:'mason',      name:'Mason',      icon:'🧱', cat:'Villager', min:1, max:4, note:'1–4' },
+    { id:'monk',       name:'Monk',       icon:'🧘', cat:'Villager', min:1, max:2, note:'1–2' },
+    { id:'seer',       name:'Seer',       icon:'🔮', cat:'Villager', min:1, max:2, note:'1–2' },
+    { id:'weaver',     name:'Weaver',     icon:'🕸️', cat:'Villager', min:1, max:2, note:'1–2' },
+  ],
+};
+
+/* ══════════════════════════════════════
+   NIGHT ACTION DEFINITIONS
+   Each action: { id, icon, title, desc, firstNightOnly, rolesRequired }
+   rolesRequired: array of role ids — action only appears if at least one is in the game
+   firstNightOnly: true = only shown on night 1
+══════════════════════════════════════ */
+function buildNightActions(isFirstNight) {
+  const inGame = getRolesInGame();
+  const has = (id) => inGame.includes(id);
+
+  const allActions = [
+    // Always first
+    {
+      id: 'sleep',
+      icon: '😴',
+      title: 'Put Players to Sleep',
+      desc: 'Ask all players to close their eyes, put their heads down, and stay silent.',
+      roles: null, // always shown
+      firstOnly: false,
+    },
+
+    // First night only — role reveals / learning
+    {
+      id: 'blob-meet',
+      icon: '🟢',
+      title: 'Blob Awakens',
+      desc: 'All Blob players open their eyes and acknowledge each other. They now know who their fellow Blob players are.',
+      roles: ['blob'],
+      firstOnly: true,
+    },
+    {
+      id: 'alpha-knows-lone',
+      icon: '🐺',
+      title: 'Alpha Wolf Learns',
+      desc: 'The Alpha Wolf opens their eyes. Point to the Lone Wolf so the Alpha Wolf knows who they are. The Lone Wolf does not wake.',
+      roles: ['alpha-wolf'],
+      firstOnly: true,
+    },
+    {
+      id: 'weaver-learns',
+      icon: '🕸️',
+      title: 'Weaver Learns',
+      desc: 'The Weaver opens their eyes. Quietly tell them two Monster roles that are NOT in this game.',
+      roles: ['weaver'],
+      firstOnly: true,
+    },
+    {
+      id: 'monk-chooses',
+      icon: '🧘',
+      title: 'Monk Chooses',
+      desc: 'The Monk opens their eyes and silently points to one player. If that player is good, the first time they are executed they will not die.',
+      roles: ['monk'],
+      firstOnly: true,
+    },
+    {
+      id: 'knight-chooses',
+      icon: '⚔️',
+      title: 'Knight Chooses',
+      desc: 'The Knight opens their eyes and silently points to one player. If that player is executed, the Knight will learn their role.',
+      roles: ['knight'],
+      firstOnly: true,
+    },
+    {
+      id: 'farmer-chooses',
+      icon: '🌾',
+      title: 'Farmer Chooses',
+      desc: 'The Farmer opens their eyes and silently points to one player. If that player is still alive on Day 3, the Farmer will learn their role.',
+      roles: ['farmer'],
+      firstOnly: true,
+    },
+
+    // Every night actions
+    {
+      id: 'alpha-wolf-acts',
+      icon: '🐺',
+      title: 'Alpha Wolf Acts',
+      desc: 'The Alpha Wolf and any converted Werewolves open their eyes. The Alpha Wolf may silently point to one player to convert to a Werewolf tonight, or shake their head to skip.',
+      roles: ['alpha-wolf'],
+      firstOnly: false,
+    },
+    {
+      id: 'lone-wolf-acts',
+      icon: '🌕',
+      title: 'Lone Wolf Acts',
+      desc: 'The Lone Wolf opens their eyes and silently points to one player to kill. They may also point to another wolf to kill them instead.',
+      roles: ['lone-wolf'],
+      firstOnly: false,
+    },
+    {
+      id: 'vampire-acts',
+      icon: '🧛',
+      title: 'Vampire Acts',
+      desc: 'The Vampire(s) open their eyes. They may silently point to up to two players to kill, or point to one player to convert. If they do neither, they become a Ghost.',
+      roles: ['vampire'],
+      firstOnly: false,
+    },
+    {
+      id: 'blob-acts',
+      icon: '🟢',
+      title: 'Blob Acts',
+      desc: 'All living Blob players open their eyes. After two nights of the Blob activating, all living Blob players die. Dead Blob players may now kill — their victims also become Blob.',
+      roles: ['blob'],
+      firstOnly: false,
+    },
+    {
+      id: 'zombie-acts',
+      icon: '🧟',
+      title: 'Zombie Acts',
+      desc: 'The Zombie opens their eyes. They may choose to appear dead tonight — if asked "Are you dead?" they answer yes. Once a Zombie for two days they become a Ghost.',
+      roles: ['zombie'],
+      firstOnly: false,
+    },
+    {
+      id: 'snatcher-acts',
+      icon: '🪤',
+      title: 'Snatcher Acts',
+      desc: 'The Snatcher opens their eyes. If they were quarantined today, they silently point to one player who will become a Snatcher.',
+      roles: ['snatcher'],
+      firstOnly: false,
+    },
+    {
+      id: 'hunter-acts',
+      icon: '🏹',
+      title: 'Hunter Acts',
+      desc: 'The Hunter opens their eyes and silently points to one player to kill. If that player was not the Alpha Wolf, they become a good Ghost.',
+      roles: ['hunter'],
+      firstOnly: false,
+    },
+    {
+      id: 'butcher-acts',
+      icon: '🔪',
+      title: 'Butcher Acts',
+      desc: 'The Butcher opens their eyes. On one night of their choosing they may silently signal to use their ability to kill two players tonight.',
+      roles: ['butcher'],
+      firstOnly: false,
+    },
+    {
+      id: 'fishmonger-acts',
+      icon: '🐟',
+      title: 'Fishmonger Acts',
+      desc: 'Each Fishmonger opens their eyes and silently points to a player. Tell each Fishmonger if that player is also a Fishmonger. Note: one night all Fishmongers receive false information.',
+      roles: ['fishmonger'],
+      firstOnly: false,
+    },
+
+    // Always last
+    {
+      id: 'wake',
+      icon: '☀️',
+      title: 'Wake Players Up',
+      desc: 'The night is over. Wake all players.',
+      roles: null,
+      firstOnly: false,
+    },
+  ];
+
+  return allActions.filter(action => {
+    if (action.firstOnly && !isFirstNight) return false;
+    if (!action.roles) return true;
+    return action.roles.some(r => has(r));
+  });
+}
+
+/* ══════════════════════════════════════
+   HELPER — which role ids are in this game
+══════════════════════════════════════ */
+function getRolesInGame() {
+  const ids = [];
+  const sel = state.selections;
+
+  if (sel.monster.role) ids.push(sel.monster.role.id);
+  if (sel.loneWolf)     ids.push('lone-wolf');
+  if (sel.minion.role)  ids.push(sel.minion.role.id);
+  if (sel.outcast.role) ids.push(sel.outcast.role.id);
+  Object.keys(sel.villager).forEach(id => ids.push(id));
+
+  return ids;
+}
+
+/* ══════════════════════════════════════
+   STATE
+══════════════════════════════════════ */
+let state = {
+  players: [],
+  selections: {
+    monster:  { role: null, count: 1 },
+    minion:   { role: null, count: 1 },
+    outcast:  { role: null, count: 1 },
+    villager: {},
+    loneWolf: 0,
+  },
+  assigned: [],
+  gameInProgress: false,
+  round: 1,
+  phase: 'night', // 'night' | 'day'
+};
+
+// Timer state
+let timerInterval = null;
+let timerSeconds  = 360; // 6 minutes
+let timerRunning  = false;
+
+// Carousel state
+let carouselActions = [];
+let carouselIndex   = 0;
+
+/* ══════════════════════════════════════
+   SCREENS
+══════════════════════════════════════ */
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0, 0);
+}
+
+/* ══════════════════════════════════════
+   HOME
+══════════════════════════════════════ */
+function startNewGame() {
+  state.players = [];
+  state.selections = {
+    monster:  { role: null, count: 1 },
+    minion:   { role: null, count: 1 },
+    outcast:  { role: null, count: 1 },
+    villager: {},
+    loneWolf: 0,
+  };
+  state.assigned = [];
+  state.gameInProgress = false;
+  state.round = 1;
+  state.phase = 'night';
+  clearTimer();
+  renderPlayerList();
+  showScreen('screen-players');
+}
+
+function continueGame() {
+  showScreen('screen-game');
+  renderArena();
+}
+
+/* ══════════════════════════════════════
+   PLAYERS
+══════════════════════════════════════ */
+function addPlayer() {
+  const inp  = document.getElementById('player-input');
+  const name = inp.value.trim();
+  if (!name || state.players.length >= 18) { inp.value = ''; return; }
+  state.players.push(name);
+  inp.value = '';
+  inp.focus();
+  renderPlayerList();
+}
+
+function removePlayer(i) {
+  state.players.splice(i, 1);
+  renderPlayerList();
+}
+
+function renderPlayerList() {
+  const list = document.getElementById('player-list');
+  list.innerHTML = '';
+  state.players.forEach((name, i) => {
+    const div = document.createElement('div');
+    div.className = 'player-item';
+    div.innerHTML =
+      '<span class="player-num">' + (i+1) + '.</span>' +
+      '<span class="player-name-text">' + escHtml(name) + '</span>' +
+      '<button class="remove-btn" onclick="removePlayer(' + i + ')">✕</button>';
+    list.appendChild(div);
+  });
+  document.getElementById('select-roles-wrap').style.display =
+    state.players.length >= 2 ? 'block' : 'none';
+}
+
+/* ══════════════════════════════════════
+   NAVIGATION
+══════════════════════════════════════ */
+function goToMonster()     { buildSingleGrid('monster');  updateCounter('monster');  showScreen('screen-monster'); }
+function goToMinion()      { buildSingleGrid('minion');   updateCounter('minion');   showScreen('screen-minion');  }
+function goToOutcast()     { buildSingleGrid('outcast');  updateCounter('outcast');  showScreen('screen-outcast'); }
+function goToVillager()    { buildVillagerGrid();         updateCounter('villager'); showScreen('screen-villager');}
+function goBackToPlayers() { showScreen('screen-players'); }
+
+/* ══════════════════════════════════════
+   SINGLE-SELECT GRID
+══════════════════════════════════════ */
+function buildSingleGrid(type) {
+  const grid = document.getElementById(type + '-grid');
+  grid.innerHTML = '';
+  const sel = state.selections[type];
+
+  ROLES[type].forEach(role => {
+    const isSelected = sel.role && sel.role.id === role.id;
+    const card = document.createElement('div');
+    card.className = 'role-card' + (isSelected ? ' selected' : '');
+    card.id = 'card-' + type + '-' + role.id;
+    card.innerHTML =
+      '<div class="card-top">' +
+        '<span class="role-icon">' + role.icon + '</span>' +
+        '<div class="role-info">' +
+          '<div class="role-name">' + role.name + '</div>' +
+          '<div class="role-range">' + role.note + '</div>' +
+        '</div>' +
+        '<span class="role-count-badge" id="cd-' + type + '-' + role.id + '">' +
+          (isSelected ? '×' + sel.count : '') +
+        '</span>' +
+      '</div>';
+    card.onclick = () => selectSingleRole(type, role);
+    grid.appendChild(card);
+  });
+
+  refreshSingleCountArea(type);
+}
+
+function selectSingleRole(type, role) {
+  const sel = state.selections[type];
+  if (!sel.role || sel.role.id !== role.id) sel.count = role.min;
+  sel.role = role;
+
+  if (type === 'monster') {
+    state.selections.loneWolf = (role.id === 'alpha-wolf') ? 1 : 0;
+  }
+
+  document.querySelectorAll('#' + type + '-grid .role-card').forEach(c => c.classList.remove('selected'));
+  const card = document.getElementById('card-' + type + '-' + role.id);
+  if (card) card.classList.add('selected');
+
+  refreshSingleCountArea(type);
+  updateCounter(type);
+  updateSingleCountDisplay(type);
+
+  const btn = document.getElementById('btn-' + type + '-next');
+  if (btn) btn.disabled = false;
+}
+
+function refreshSingleCountArea(type) {
+  const area = document.getElementById(type + '-count-area');
+  const sel  = state.selections[type];
+  if (!sel || !sel.role) { if (area) area.style.display = 'none'; return; }
+  area.style.display = 'block';
+
+  document.getElementById(type + '-selected-panel').innerHTML =
+    '<span class="sp-icon">' + sel.role.icon + '</span>' +
+    '<div class="sp-info">' +
+      '<div class="sp-name">' + sel.role.name + '</div>' +
+      '<div class="sp-count">×' + sel.count + ' in game</div>' +
+    '</div>';
+
+  document.getElementById(type + '-count-val').textContent = sel.count;
+  updateSingleCountBtns(type);
+}
+
+function changeCount(type, delta) {
+  const sel      = state.selections[type];
+  const newVal   = sel.count + delta;
+  const maxAllow = Math.min(sel.role.max, state.players.length - (totalAssigned() - assignedCountSingle(type)));
+  if (newVal < sel.role.min || newVal > maxAllow) return;
+  sel.count = newVal;
+  refreshSingleCountArea(type);
+  updateCounter(type);
+  updateSingleCountDisplay(type);
+}
+
+function updateSingleCountBtns(type) {
+  const sel      = state.selections[type];
+  const maxAllow = Math.min(sel.role.max, state.players.length - (totalAssigned() - assignedCountSingle(type)));
+  document.getElementById(type + '-dec').disabled = sel.count <= sel.role.min;
+  document.getElementById(type + '-inc').disabled = sel.count >= maxAllow;
+}
+
+function updateSingleCountDisplay(type) {
+  const sel = state.selections[type];
+  document.querySelectorAll('#' + type + '-grid .role-card').forEach(c => {
+    const rid  = c.id.replace('card-' + type + '-', '');
+    const cdEl = document.getElementById('cd-' + type + '-' + rid);
+    if (!cdEl) return;
+    cdEl.textContent = (sel.role && sel.role.id === rid) ? '×' + sel.count : '';
+  });
+}
+
+/* ══════════════════════════════════════
+   MULTI-SELECT GRID (villager)
+══════════════════════════════════════ */
+function buildVillagerGrid() {
+  const grid = document.getElementById('villager-grid');
+  grid.innerHTML = '';
+  const vSel = state.selections.villager;
+
+  ROLES.villager.forEach(role => {
+    const isSelected = !!vSel[role.id];
+    const count      = vSel[role.id] || role.min;
+    const card = document.createElement('div');
+    card.className = 'role-card' + (isSelected ? ' multi-selected' : '');
+    card.id = 'vcard-' + role.id;
+    card.innerHTML =
+      '<div class="card-top">' +
+        '<span class="role-icon">' + role.icon + '</span>' +
+        '<div class="role-info">' +
+          '<div class="role-name">' + role.name + '</div>' +
+          '<div class="role-range">' + role.note + '</div>' +
+        '</div>' +
+        '<span class="role-count-badge" id="vcd-' + role.id + '">' + (isSelected ? '×' + count : '') + '</span>' +
+      '</div>' +
+      '<div class="inline-count" id="vic-' + role.id + '">' +
+        '<button class="ic-btn" id="vdec-' + role.id + '" onclick="changeVillagerCount(\'' + role.id + '\',-1);event.stopPropagation()">−</button>' +
+        '<span class="ic-val" id="vval-' + role.id + '">' + count + '</span>' +
+        '<button class="ic-btn" id="vinc-' + role.id + '" onclick="changeVillagerCount(\'' + role.id + '\',1);event.stopPropagation()">+</button>' +
+        '<span class="ic-label">in game</span>' +
+      '</div>';
+    card.onclick = () => toggleVillagerRole(role);
+    grid.appendChild(card);
+  });
+
+  updateVillagerNextBtn();
+}
+
+function toggleVillagerRole(role) {
+  const vSel = state.selections.villager;
+  if (vSel[role.id]) {
+    delete vSel[role.id];
+    document.getElementById('vcard-' + role.id).classList.remove('multi-selected');
+    document.getElementById('vcd-' + role.id).textContent = '';
+  } else {
+    const remaining = state.players.length - totalAssigned();
+    if (remaining < role.min) return;
+    vSel[role.id] = role.min;
+    document.getElementById('vcard-' + role.id).classList.add('multi-selected');
+    document.getElementById('vcd-' + role.id).textContent = '×' + role.min;
+    document.getElementById('vval-' + role.id).textContent = role.min;
+  }
+  updateVillagerCountBtns(role.id);
+  updateCounter('villager');
+  updateVillagerNextBtn();
+}
+
+function changeVillagerCount(roleId, delta) {
+  const vSel = state.selections.villager;
+  if (!vSel[roleId]) return;
+  const role     = ROLES.villager.find(r => r.id === roleId);
+  const newVal   = vSel[roleId] + delta;
+  const maxAllow = Math.min(role.max, state.players.length - (totalAssigned() - vSel[roleId]));
+  if (newVal < role.min || newVal > maxAllow) return;
+  vSel[roleId] = newVal;
+  document.getElementById('vval-' + roleId).textContent = newVal;
+  document.getElementById('vcd-'  + roleId).textContent = '×' + newVal;
+  updateVillagerCountBtns(roleId);
+  updateCounter('villager');
+}
+
+function updateVillagerCountBtns(roleId) {
+  const vSel = state.selections.villager;
+  if (!vSel[roleId]) return;
+  const role     = ROLES.villager.find(r => r.id === roleId);
+  const maxAllow = Math.min(role.max, state.players.length - (totalAssigned() - vSel[roleId]));
+  document.getElementById('vdec-' + roleId).disabled = vSel[roleId] <= role.min;
+  document.getElementById('vinc-' + roleId).disabled = vSel[roleId] >= maxAllow;
+}
+
+function updateVillagerNextBtn() {
+  document.getElementById('btn-villager-next').disabled =
+    Object.keys(state.selections.villager).length === 0;
+}
+
+/* ══════════════════════════════════════
+   COUNTING HELPERS
+══════════════════════════════════════ */
+function assignedCountSingle(type) {
+  const sel = state.selections[type];
+  return (sel && sel.role) ? sel.count : 0;
+}
+function assignedCountVillager() {
+  return Object.values(state.selections.villager).reduce((s, c) => s + c, 0);
+}
+function totalAssigned() {
+  return assignedCountSingle('monster') +
+         assignedCountSingle('minion')  +
+         assignedCountSingle('outcast') +
+         assignedCountVillager()        +
+         (state.selections.loneWolf || 0);
+}
+function updateCounter(type) {
+  const el = document.getElementById('counter-' + type);
+  if (el) el.textContent = totalAssigned() + '/' + state.players.length;
+}
+
+/* ══════════════════════════════════════
+   SUMMARY
+══════════════════════════════════════ */
+function goToSummary() {
+  const total     = state.players.length;
+  const assigned  = totalAssigned();
+  const remaining = total - assigned;
+  const list      = document.getElementById('summary-list');
+  const sub       = document.getElementById('summary-subtitle');
+
+  sub.textContent = assigned + ' of ' + total + ' roles assigned' +
+    (remaining > 0 ? ' — ' + remaining + ' will be plain Villagers' : ' ✓');
+
+  list.innerHTML = '';
+  const catClass = { Monster:'cat-monster', Minion:'cat-minion', Outcast:'cat-outcast', Villager:'cat-villager' };
+
+  ['monster','minion','outcast'].forEach(type => {
+    const sel = state.selections[type];
+    if (!sel || !sel.role) return;
+    const cls = catClass[sel.role.cat] || '';
+    const div = document.createElement('div');
+    div.className = 'summary-item';
+    div.innerHTML =
+      '<span class="summary-icon">' + sel.role.icon + '</span>' +
+      '<div class="summary-info">' +
+        '<div class="summary-role">' + sel.role.name + '</div>' +
+        '<div class="summary-cat ' + cls + '">' + sel.role.cat + '</div>' +
+      '</div>' +
+      '<span class="summary-count">×' + sel.count + '</span>';
+    list.appendChild(div);
+  });
+
+  if (state.selections.loneWolf) {
+    const div = document.createElement('div');
+    div.className = 'summary-item';
+    div.innerHTML =
+      '<span class="summary-icon">🌕</span>' +
+      '<div class="summary-info">' +
+        '<div class="summary-role">Lone Wolf</div>' +
+        '<div class="summary-cat cat-monster">Monster — auto-added</div>' +
+      '</div>' +
+      '<span class="summary-count">×1</span>';
+    list.appendChild(div);
+  }
+
+  const vSel = state.selections.villager;
+  ROLES.villager.forEach(role => {
+    if (!vSel[role.id]) return;
+    const div = document.createElement('div');
+    div.className = 'summary-item';
+    div.innerHTML =
+      '<span class="summary-icon">' + role.icon + '</span>' +
+      '<div class="summary-info">' +
+        '<div class="summary-role">' + role.name + '</div>' +
+        '<div class="summary-cat cat-villager">Villager</div>' +
+      '</div>' +
+      '<span class="summary-count">×' + vSel[role.id] + '</span>';
+    list.appendChild(div);
+  });
+
+  if (remaining > 0) {
+    const div = document.createElement('div');
+    div.className = 'summary-item';
+    div.style.opacity = '.5';
+    div.innerHTML =
+      '<span class="summary-icon">🏡</span>' +
+      '<div class="summary-info">' +
+        '<div class="summary-role">Villager</div>' +
+        '<div class="summary-cat cat-villager">Auto-filled</div>' +
+      '</div>' +
+      '<span class="summary-count">×' + remaining + '</span>';
+    list.appendChild(div);
+  }
+
+  showScreen('screen-summary');
+}
+
+/* ══════════════════════════════════════
+   ASSIGN ROLES
+══════════════════════════════════════ */
+function assignRoles() {
+  const pool = [];
+
+  ['monster','minion','outcast'].forEach(type => {
+    const sel = state.selections[type];
+    if (!sel || !sel.role) return;
+    for (let i = 0; i < sel.count; i++)
+      pool.push({ role: sel.role.name, icon: sel.role.icon, cat: sel.role.cat });
+  });
+
+  if (state.selections.loneWolf)
+    pool.push({ role: 'Lone Wolf', icon: '🌕', cat: 'Monster' });
+
+  const vSel = state.selections.villager;
+  ROLES.villager.forEach(role => {
+    if (!vSel[role.id]) return;
+    for (let i = 0; i < vSel[role.id]; i++)
+      pool.push({ role: role.name, icon: role.icon, cat: role.cat });
+  });
+
+  while (pool.length < state.players.length)
+    pool.push({ role: 'Villager', icon: '🏡', cat: 'Villager' });
+
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+
+  state.assigned = state.players.map((name, i) => ({
+    player: name,
+    role:   pool[i].role,
+    icon:   pool[i].icon,
+    cat:    pool[i].cat,
+    alive:  true,
+  }));
+
+  renderShowRoles();
+  showScreen('screen-showroles');
+}
+
+/* ══════════════════════════════════════
+   SHOW ROLES
+══════════════════════════════════════ */
+function renderShowRoles() {
+  const list = document.getElementById('show-roles-list');
+  list.innerHTML = '';
+  state.assigned.forEach((entry, i) => {
+    const div = document.createElement('div');
+    div.className = 'show-role-item';
+    div.innerHTML =
+      '<span class="sri-icon">' + entry.icon + '</span>' +
+      '<div class="sri-info">' +
+        '<div class="sri-player">' + escHtml(entry.player) + '</div>' +
+        '<div class="sri-role">Tap to reveal role</div>' +
+      '</div>' +
+      '<span class="sri-arrow">›</span>';
+    div.onclick = () => revealRole(i);
+    list.appendChild(div);
+  });
+}
+
+function revealRole(i) {
+  const e = state.assigned[i];
+  document.getElementById('reveal-icon').textContent   = e.icon;
+  document.getElementById('reveal-player').textContent = e.player;
+  document.getElementById('reveal-role').textContent   = e.role;
+  document.getElementById('reveal-cat').textContent    = e.cat;
+  showScreen('screen-reveal');
+}
+
+/* ══════════════════════════════════════
+   MODAL
+══════════════════════════════════════ */
+function openStartModal()  { document.getElementById('modal-start').classList.add('open'); }
+function closeStartModal() { document.getElementById('modal-start').classList.remove('open'); }
+
+function confirmStartGame() {
+  closeStartModal();
+  state.gameInProgress = true;
+  state.round = 1;
+  state.phase = 'night';
+  document.getElementById('btn-continue').style.display = 'flex';
+  initGameScreen();
+  showScreen('screen-game');
+}
+
+/* ══════════════════════════════════════
+   GAME SCREEN INIT
+══════════════════════════════════════ */
+function initGameScreen() {
+  updatePhaseLabel();
+  renderArena();
+  setGameBottomState('night-btn');
+}
+
+function updatePhaseLabel() {
+  const lbl = document.getElementById('phase-label');
+  const rnd = document.getElementById('round-label');
+  if (state.phase === 'night') {
+    lbl.className = 'phase-label night';
+    lbl.textContent = '🌙 Night ' + state.round;
+  } else {
+    lbl.className = 'phase-label day';
+    lbl.textContent = '☀️ Day ' + state.round;
+  }
+  rnd.textContent = 'Round ' + state.round;
+}
+
+/* ══════════════════════════════════════
+   HORSESHOE ARENA
+══════════════════════════════════════ */
+function renderArena() {
+  const arena   = document.getElementById('arena');
+  arena.innerHTML = '';
+  const players = state.assigned;
+  const n       = players.length;
+  if (!n) return;
+
+  // Wait for layout then position
+  requestAnimationFrame(() => {
+    const W = arena.offsetWidth  || window.innerWidth;
+    const H = arena.offsetHeight || 300;
+
+    // Horseshoe: semi-ellipse open at the bottom
+    // cx, cy = centre of the ellipse (pushed down so bottom opens)
+    const cx  = W / 2;
+    const cy  = H * 0.52;
+    const rx  = W * 0.40;  // horizontal radius
+    const ry  = H * 0.44;  // vertical radius
+
+    // Spread from ~200° to ~340° (bottom-left to bottom-right going clockwise via top)
+    // In standard math angles: left bottom = 210°, right bottom = 330°
+    // We go counter-clockwise from left to right via the top
+    const startAngle = 210; // degrees — bottom left
+    const endAngle   = 330; // degrees — bottom right
+    const span       = 360 - (endAngle - startAngle); // going the long way round = 240°
+
+    players.forEach((p, i) => {
+      // i=0 → bottom left, i=n-1 → bottom right
+      const frac    = n === 1 ? 0.5 : i / (n - 1);
+      // angle in degrees going counter-clockwise from startAngle
+      const angleDeg = startAngle - frac * span; // subtract because we go CCW
+      const angleRad = angleDeg * Math.PI / 180;
+
+      const x = cx + rx * Math.cos(angleRad);
+      const y = cy - ry * Math.sin(angleRad);
+
+      const token = document.createElement('div');
+      token.className = 'player-token ' + (p.alive !== false ? 'alive' : 'dead');
+      token.style.left = x + 'px';
+      token.style.top  = y + 'px';
+      token.innerHTML =
+        '<div class="token-dot">' + p.icon + '</div>' +
+        '<div class="token-name">' + escHtml(p.player) + '</div>';
+
+      arena.appendChild(token);
+    });
+  });
+}
+
+/* ══════════════════════════════════════
+   GAME BOTTOM STATE MACHINE
+   States: 'night-btn' | 'carousel' | 'day'
+══════════════════════════════════════ */
+function setGameBottomState(state_name) {
+  document.getElementById('btn-night-phase').style.display  = 'none';
+  document.getElementById('night-carousel').classList.remove('open');
+  document.getElementById('day-bottom').classList.remove('open');
+
+  if (state_name === 'night-btn') {
+    document.getElementById('btn-night-phase').style.display = 'block';
+  } else if (state_name === 'carousel') {
+    document.getElementById('night-carousel').classList.add('open');
+  } else if (state_name === 'day') {
+    document.getElementById('day-bottom').classList.add('open');
+  }
+}
+
+/* ══════════════════════════════════════
+   NIGHT CAROUSEL
+══════════════════════════════════════ */
+function openNightCarousel() {
+  const isFirst = state.round === 1;
+  carouselActions = buildNightActions(isFirst);
+  carouselIndex   = 0;
+  state.phase     = 'night';
+  updatePhaseLabel();
+  renderCarouselDots();
+  renderCarouselCard();
+  setGameBottomState('carousel');
+}
+
+function renderCarouselDots() {
+  const dots = document.getElementById('carousel-dots');
+  dots.innerHTML = '';
+  carouselActions.forEach((_, i) => {
+    const d = document.createElement('div');
+    d.className = 'carousel-dot' +
+      (i === carouselIndex ? ' active' : (i < carouselIndex ? ' done' : ''));
+    dots.appendChild(d);
+  });
+}
+
+function renderCarouselCard() {
+  const action = carouselActions[carouselIndex];
+  const isLast = carouselIndex === carouselActions.length - 1;
+
+  document.getElementById('cc-icon').textContent  = action.icon;
+  document.getElementById('cc-title').textContent = action.title;
+  document.getElementById('cc-desc').textContent  = action.desc;
+
+  // Prev button
+  document.getElementById('carousel-prev').style.display =
+    carouselIndex === 0 ? 'none' : 'flex';
+
+  // Next button vs wake button
+  document.getElementById('carousel-next').style.display = isLast ? 'none' : 'flex';
+  document.getElementById('wake-btn').style.display      = isLast ? 'block' : 'none';
+
+  renderCarouselDots();
+}
+
+function carouselNext() {
+  if (carouselIndex < carouselActions.length - 1) {
+    carouselIndex++;
+    renderCarouselCard();
+  }
+}
+
+function carouselPrev() {
+  if (carouselIndex > 0) {
+    carouselIndex--;
+    renderCarouselCard();
+  }
+}
+
+function endNightPhase() {
+  // Transition to day
+  state.phase = 'day';
+  updatePhaseLabel();
+  resetTimer();
+  // Reset day bottom UI
+  document.getElementById('timer-wrap').style.display     = 'none';
+  document.getElementById('timer-controls').style.display = 'none';
+  document.getElementById('start-day-btn').style.display  = 'block';
+  setGameBottomState('day');
+}
+
+/* ══════════════════════════════════════
+   DAY TIMER
+══════════════════════════════════════ */
+function startDayTimer() {
+  document.getElementById('start-day-btn').style.display  = 'none';
+  document.getElementById('timer-wrap').style.display     = 'block';
+  document.getElementById('timer-controls').style.display = 'flex';
+  timerSeconds = 360;
+  timerRunning = true;
+  updateTimerDisplay();
+  clearInterval(timerInterval);
+  timerInterval = setInterval(() => {
+    if (!timerRunning) return;
+    timerSeconds--;
+    updateTimerDisplay();
+    if (timerSeconds <= 0) {
+      clearInterval(timerInterval);
+      timerRunning = false;
+      document.getElementById('timer-display').textContent = '0:00';
+    }
+  }, 1000);
+}
+
+function updateTimerDisplay() {
+  const m   = Math.floor(timerSeconds / 60);
+  const s   = timerSeconds % 60;
+  const str = m + ':' + (s < 10 ? '0' : '') + s;
+  const el  = document.getElementById('timer-display');
+  el.textContent = str;
+  el.className   = 'timer-display' + (timerSeconds <= 60 ? ' urgent' : '');
+}
+
+function pauseTimer() {
+  timerRunning = !timerRunning;
+  const btn = document.querySelector('.timer-controls .btn');
+  btn.textContent = timerRunning ? '⏸ Pause' : '▶ Resume';
+}
+
+function resetTimer() {
+  clearInterval(timerInterval);
+  timerRunning  = false;
+  timerSeconds  = 360;
+  const el = document.getElementById('timer-display');
+  if (el) { el.textContent = '6:00'; el.className = 'timer-display'; }
+  const btn = document.querySelector('.timer-controls .btn');
+  if (btn) btn.textContent = '⏸ Pause';
+}
+
+function clearTimer() {
+  clearInterval(timerInterval);
+  timerRunning = false;
+  timerSeconds = 360;
+}
+
+function triggerNextNight() {
+  clearTimer();
+  state.round++;
+  state.phase = 'night';
+  updatePhaseLabel();
+  setGameBottomState('night-btn');
+}
+
+/* ══════════════════════════════════════
+   UTILS
+══════════════════════════════════════ */
+function escHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+(function init() {
+  if (state.gameInProgress)
+    document.getElementById('btn-continue').style.display = 'flex';
+})();
+</script>
+</body>
+</html>
